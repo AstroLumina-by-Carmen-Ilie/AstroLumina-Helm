@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+  labels:
+    name: {{ .Values.namespace }}
+    environment: {{ .Values.environment }}
+    app.kubernetes.io/part-of: astrolumina

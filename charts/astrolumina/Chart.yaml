@@ -1,0 +1,9 @@
+apiVersion: v2
+name: astrolumina
+description: AstroLumina platform (frontend + astrology/booking/payment APIs) for a single environment
+type: application
+version: 1.0.0
+appVersion: "latest"
+# One release per environment, each with its own values file:
+#   helm install astrolumina-dev ./charts/astrolumina -f charts/astrolumina/values-dev.yaml
+# See the repo README.md for the full runbook.

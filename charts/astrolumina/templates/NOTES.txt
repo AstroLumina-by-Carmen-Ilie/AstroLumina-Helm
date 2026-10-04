@@ -1,0 +1,36 @@
+{{/* Release notes: where to reach the environment and what is NOT managed
+by this chart (imperative one-time secrets per cluster rebuild). */}}
+AstroLumina {{ .Values.environment }} is installed in namespace {{ .Values.namespace }}.
+{{- if .Values.traefik.enabled }}
+
+  App:       http{{ if .Values.traefik.tls }}s{{ end }}://{{ .Values.traefik.host }}
+  Dashboard: http{{ if .Values.traefik.tls }}s{{ end }}://{{ .Values.traefik.dashboardHost }}
+{{- else }}
+
+  No Traefik in this environment — reach the pods via NodePorts on any node IP:
+{{- range $svc := .Values.services }}
+    {{ $svc.name }}: <node-ip>:{{ $svc.nodePort }} (container port {{ $svc.containerPort }})
+{{- end }}
+{{- end }}
+{{- if .Values.blueGreen.enabled }}
+
+  Live color: {{ .Values.blueGreen.liveColor }} (the *-live Services select
+  variant={{ .Values.blueGreen.liveColor }}). Switch traffic with:
+    helm upgrade <release> ./charts/astrolumina -f charts/astrolumina/{{ .Values.valuesFile }} \
+      --set blueGreen.liveColor=green
+{{- end }}
+
+NOT in this chart (create once per cluster rebuild, values from Doppler CLI
+on your laptop, kubectl on the control plane over ssh):
+  - doppler-token ServiceToken Secret in doppler-operator-system
+    (referenced as {{ .Values.doppler.tokenSecret }})
+  - real {{ .Values.image.pullSecret }} docker-registry Secret in
+    {{ .Values.namespace }} (chart ships a placeholder only)
+{{- if .Values.traefik.dashboardAuth }}
+  - traefik-dashboard-auth Secret in {{ .Values.namespace }}
+    (htpasswd users line for the dashboard basicAuth middleware)
+{{- end }}
+First boot runs on the placeholder Secrets; after the Doppler sync is
+verified, disable them without uninstalling via:
+  helm upgrade <release> ./charts/astrolumina -f charts/astrolumina/{{ .Values.valuesFile }} \
+    --set placeholderSecretsEnabled=false

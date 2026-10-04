@@ -1,0 +1,96 @@
+{{/* Deployments: one per service on dev, blue+green per service on
+staging/production. Only replicas, probe delays and node affinity vary per
+environment — everything else comes from the shared service catalog. */}}
+{{- $root := . }}
+{{- $colors := list "" }}
+{{- if .Values.blueGreen.enabled }}{{ $colors = list "blue" "green" }}{{ end }}
+{{- range $svc := .Values.services }}
+{{- range $color := $colors }}
+{{- $name := include "astrolumina.workloadName" (list $svc $color) }}
+{{- $probes := $root.Values.probes.api }}
+{{- if eq $svc.name "frontend" }}{{ $probes = $root.Values.probes.frontend }}{{ end }}
+{{- $node := "" }}
+{{- if $root.Values.blueGreen.enabled }}{{ $node = index $root.Values.blueGreen.nodeNames $color }}{{ end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $root.Values.namespace }}
+  annotations:
+    secrets.doppler.com/reload: "true"
+  labels:
+{{ include "astrolumina.labels" (list $svc $color $root) | indent 4 }}
+spec:
+  replicas: {{ $root.Values.replicas }}
+  selector:
+    matchLabels:
+{{ include "astrolumina.selector" (list $svc $color) | indent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+{{ include "astrolumina.labels" (list $svc $color $root) | indent 8 }}
+    spec:
+      imagePullSecrets:
+        - name: {{ $root.Values.image.pullSecret }}
+      {{- if $node }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - {{ $node }}
+      {{- end }}
+      containers:
+        - name: {{ $svc.name }}
+          image: {{ $root.Values.image.registry }}/{{ $svc.image }}:{{ $root.Values.image.tag }}
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.containerPort }}
+              protocol: TCP
+          env:
+{{- range $e := $svc.env }}
+            - name: {{ $e.name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "astrolumina.secretName" (list $svc) }}
+                  key: {{ $e.key }}
+{{- if $e.optional }}
+                  optional: true
+{{- end }}
+{{- end }}
+          resources:
+            requests:
+              cpu: {{ $svc.requests.cpu }}
+              memory: {{ $svc.requests.memory }}
+            limits:
+              cpu: {{ $svc.limits.cpu }}
+              memory: {{ $svc.limits.memory }}
+          livenessProbe:
+            httpGet:
+              path: {{ $svc.probePath }}
+              port: http
+            initialDelaySeconds: {{ $probes.livenessDelay }}
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ $svc.probePath }}
+              port: http
+            initialDelaySeconds: {{ $probes.readinessDelay }}
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 2
+      restartPolicy: Always
+{{- end }}
+{{- end }}

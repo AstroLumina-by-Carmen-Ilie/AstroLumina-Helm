@@ -1,0 +1,46 @@
+{{/* Services. Dev exposes each Deployment directly via NodePort (no
+Traefik). Staging/production expose only the stable *-live ClusterIP
+Services — the blue-green switch is exactly these selectors. */}}
+{{- $root := . }}
+{{- range $svc := .Values.services }}
+{{- if eq $root.Values.exposure "NodePort" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc.name }}
+  namespace: {{ $root.Values.namespace }}
+  labels:
+{{ include "astrolumina.labels" (list $svc "" $root) | indent 4 }}
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: {{ $svc.servicePort }}
+      targetPort: http
+      nodePort: {{ $svc.nodePort }}
+      protocol: TCP
+  selector:
+{{ include "astrolumina.selector" (list $svc "") | indent 4 }}
+{{- else }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc.name }}-live
+  namespace: {{ $root.Values.namespace }}
+  labels:
+{{ include "astrolumina.labels" (list $svc "" $root) | indent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ $svc.servicePort }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ $svc.name }}
+    app.kubernetes.io/component: {{ $svc.component }}
+    variant: {{ $root.Values.blueGreen.liveColor }}
+{{- end }}
+{{- end }}

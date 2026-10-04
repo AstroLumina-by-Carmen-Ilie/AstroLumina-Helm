@@ -1,0 +1,116 @@
+{{/* Traefik middlewares mirroring traefik/dynamic/routes.yml from the Compose
+setup (values kept identical). The rate-limit middleware is defined but
+attached to no router — same as in Compose — so it can be attached
+per-route later. to-https and dashboard-auth exist on production only. */}}
+{{- if .Values.traefik.enabled }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: compress
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  compress: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  headers:
+    frameDeny: true
+    contentTypeNosniff: true
+    browserXssFilter: true
+    referrerPolicy: "strict-origin-when-cross-origin"
+    customResponseHeaders:
+      X-Robots-Tag: "noindex, nofollow"
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  rateLimit:
+    average: 100
+    burst: 50
+    period: 1s
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-astrology
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  stripPrefix:
+    prefixes:
+      - "/api/astrology"
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-payment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  stripPrefix:
+    prefixes:
+      - "/api/payment"
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-booking
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  stripPrefix:
+    prefixes:
+      - "/api/booking"
+{{- if .Values.traefik.redirectHttp }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: to-https
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+{{- end }}
+{{- if .Values.traefik.dashboardAuth }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: dashboard-auth
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ .Values.environment }}
+spec:
+  basicAuth:
+    secret: traefik-dashboard-auth
+{{- end }}
+{{- end }}

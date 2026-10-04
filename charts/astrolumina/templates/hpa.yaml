@@ -1,0 +1,42 @@
+{{/* HPAs: one per Deployment (per color on staging/production). CPU-only
+except the dev frontend, which also scales on memory. */}}
+{{- $root := . }}
+{{- $colors := list "" }}
+{{- if .Values.blueGreen.enabled }}{{ $colors = list "blue" "green" }}{{ end }}
+{{- range $svc := .Values.services }}
+{{- range $color := $colors }}
+{{- $name := include "astrolumina.workloadName" (list $svc $color) }}
+{{- $mem := index $root.Values.hpa.memoryUtilization $svc.name }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}-hpa
+  namespace: {{ $root.Values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: astrolumina
+    environment: {{ $root.Values.environment }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $root.Values.hpa.minReplicas }}
+  maxReplicas: {{ $root.Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $root.Values.hpa.cpuUtilization }}
+{{- if $mem }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $mem }}
+{{- end }}
+{{- end }}
+{{- end }}
