@@ -35,7 +35,7 @@ variant: {{ $color }}
 {{- end -}}
 {{- end -}}
 
-{{/* Managed Secret name holding a service's env (02-secrets.yaml equivalent). */}}
+{{/* Managed Secret name holding a service's env (created by the Doppler operator after sync). */}}
 {{- define "astrolumina.secretName" -}}
 {{- $svc := index . 0 -}}
 env-{{ $svc.name }}-secrets

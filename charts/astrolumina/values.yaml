@@ -13,8 +13,9 @@ image:
 
 # Ordered service catalog. `env` is the exact secretKeyRef wiring from the
 # Kustomize deployments (name -> key, plus `optional: true` where the
-# originals set it). The DopplerSecret sync list for each service is derived
-# from these keys, so deployments and sync lists can never drift apart.
+# originals set it). Each service also carries its explicit `dopplerSync`
+# key list (order matches the original 01-doppler-secrets.yaml), so the
+# placeholder Secrets and the DopplerSecret manifests both use these keys.
 services:
   - name: frontend
     component: frontend
@@ -34,73 +35,81 @@ services:
         key: NODE_ENV
       - name: FRONTEND_SERVER_PORT
         key: FRONTEND_SERVER_PORT
-      - name: FRONTEND_SERVER_DNS
-        key: FRONTEND_SERVER_DNS
-      - name: ASTROLOGY_API_SERVER_PORT
-        key: ASTROLOGY_API_SERVER_PORT
-      - name: ASTROLOGY_API_SERVER_DNS
-        key: ASTROLOGY_API_SERVER_DNS
-      - name: BOOKING_API_SERVER_PORT
-        key: BOOKING_API_SERVER_PORT
-      - name: BOOKING_API_SERVER_DNS
-        key: BOOKING_API_SERVER_DNS
-      - name: PAYMENT_API_SERVER_PORT
-        key: PAYMENT_API_SERVER_PORT
-      - name: PAYMENT_API_SERVER_DNS
-        key: PAYMENT_API_SERVER_DNS
-      - name: FRONTEND_SERVER_K8S_PORT
-        key: FRONTEND_SERVER_K8S_PORT
-      - name: ASTROLOGY_API_SERVER_K8S_PORT
-        key: ASTROLOGY_API_SERVER_K8S_PORT
-      - name: BOOKING_API_SERVER_K8S_PORT
-        key: BOOKING_API_SERVER_K8S_PORT
-      - name: PAYMENT_API_SERVER_K8S_PORT
-        key: PAYMENT_API_SERVER_K8S_PORT
       - name: FRONTEND_SENTRY_DSN
         key: FRONTEND_SENTRY_DSN
-      - name: ASTROLOGICAL_API_URL
-        key: ASTROLOGICAL_API_K8S_URL
-      - name: PAYMENT_API_URL
-        key: PAYMENT_API_K8S_URL
-      - name: BOOKING_API_URL
-        key: BOOKING_API_K8S_URL
       - name: STRIPE_PK
         key: STRIPE_PK
       - name: R2_BASE_URL
         key: R2_BASE_URL
+      - name: ASTROLOGY_API_URL
+        key: ASTROLOGY_API_K8S_URL
+      - name: PAYMENT_API_URL
+        key: PAYMENT_API_K8S_URL
+      - name: BOOKING_API_URL
+        key: BOOKING_API_K8S_URL
+      - name: ASTROLOGY_API_SERVER_DC_PORT
+        key: ASTROLOGY_API_SERVER_DC_PORT
+      - name: ASTROLOGY_API_SERVER_DC_DNS
+        key: ASTROLOGY_API_SERVER_DC_DNS
+      - name: ASTROLOGY_API_SERVER_K8S_PORT
+        key: ASTROLOGY_API_SERVER_K8S_PORT
+      - name: ASTROLOGY_API_SERVER_K8S_DNS
+        key: ASTROLOGY_API_SERVER_K8S_DNS
+      - name: BOOKING_API_SERVER_DC_PORT
+        key: BOOKING_API_SERVER_DC_PORT
+      - name: BOOKING_API_SERVER_DC_DNS
+        key: BOOKING_API_SERVER_DC_DNS
+      - name: BOOKING_API_SERVER_K8S_PORT
+        key: BOOKING_API_SERVER_K8S_PORT
+      - name: BOOKING_API_SERVER_K8S_DNS
+        key: BOOKING_API_SERVER_K8S_DNS
+      - name: PAYMENT_API_SERVER_DC_PORT
+        key: PAYMENT_API_SERVER_DC_PORT
+      - name: PAYMENT_API_SERVER_DC_DNS
+        key: PAYMENT_API_SERVER_DC_DNS
+      - name: PAYMENT_API_SERVER_K8S_PORT
+        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: PAYMENT_API_SERVER_K8S_DNS
+        key: PAYMENT_API_SERVER_K8S_DNS
+      - name: FRONTEND_SERVER_DC_PORT
+        key: FRONTEND_SERVER_DC_PORT
+      - name: FRONTEND_SERVER_DC_DNS
+        key: FRONTEND_SERVER_DC_DNS
+      - name: FRONTEND_SERVER_K8S_PORT
+        key: FRONTEND_SERVER_K8S_PORT
+      - name: FRONTEND_SERVER_K8S_DNS
+        key: FRONTEND_SERVER_K8S_DNS
     # Exact DopplerSecret sync list for this service (order matches the
-    # original 03-doppler-secrets.yaml). It is NOT derived from `env`
-    # above: the frontend syncs CORS_ORIGINS plus both the public and the
-    # K8s-reachable API URLs, and the payment sync lists keys in a different
-    # order than the container env. Keeping one explicit list means the
-    # Deployment wiring and the sync list can never drift apart silently —
-    # the placeholder Secrets and the validation step both use these keys.
+    # original 01-doppler-secrets.yaml). Only keys actually referenced by
+    # the container env (or the pairs) are synced: the frontend reads the
+    # app-facing _API_URL names from the _API_K8S_URL secret keys, so just
+    # the K8s-side keys are listed — the unreferenced plain _API_URL and
+    # _API_DC_URL keys are NOT synced.
     dopplerSync:
       - NODE_ENV
       - FRONTEND_SERVER_PORT
-      - FRONTEND_SERVER_DNS
-      - ASTROLOGY_API_SERVER_PORT
-      - ASTROLOGY_API_SERVER_DNS
-      - BOOKING_API_SERVER_PORT
-      - BOOKING_API_SERVER_DNS
-      - PAYMENT_API_SERVER_PORT
-      - PAYMENT_API_SERVER_DNS
-      - FRONTEND_SERVER_K8S_PORT
-      - ASTROLOGY_API_SERVER_K8S_PORT
-      - BOOKING_API_SERVER_K8S_PORT
-      - PAYMENT_API_SERVER_K8S_PORT
-      - CORS_ORIGINS
-      - ASTROLOGICAL_API_URL
-      - PAYMENT_API_URL
-      - BOOKING_API_URL
+      - FRONTEND_SENTRY_DSN
       - STRIPE_PK
       - R2_BASE_URL
-      - FRONTEND_SENTRY_DSN
-      # K8s-reachable endpoints behind the _API_URL references above (Doppler
-      # resolves ${...} server-side at sync; keep both sides listed).
-      - ASTROLOGICAL_API_K8S_URL
+      - ASTROLOGY_API_K8S_URL
       - PAYMENT_API_K8S_URL
       - BOOKING_API_K8S_URL
+      - ASTROLOGY_API_SERVER_DC_PORT
+      - ASTROLOGY_API_SERVER_DC_DNS
+      - ASTROLOGY_API_SERVER_K8S_PORT
+      - ASTROLOGY_API_SERVER_K8S_DNS
+      - BOOKING_API_SERVER_DC_PORT
+      - BOOKING_API_SERVER_DC_DNS
+      - BOOKING_API_SERVER_K8S_PORT
+      - BOOKING_API_SERVER_K8S_DNS
+      - PAYMENT_API_SERVER_DC_PORT
+      - PAYMENT_API_SERVER_DC_DNS
+      - PAYMENT_API_SERVER_K8S_PORT
+      - PAYMENT_API_SERVER_K8S_DNS
+      - FRONTEND_SERVER_DC_PORT
+      - FRONTEND_SERVER_DC_DNS
+      - FRONTEND_SERVER_K8S_PORT
+      - FRONTEND_SERVER_K8S_DNS
   - name: astrology-api
     component: astrology-api
     image: astrolumina-astrologyapi
@@ -117,62 +126,77 @@ services:
     env:
       - name: NODE_ENV
         key: NODE_ENV
-      - name: FRONTEND_SERVER_PORT
-        key: FRONTEND_SERVER_PORT
-      - name: FRONTEND_SERVER_DNS
-        key: FRONTEND_SERVER_DNS
       - name: ASTROLOGY_API_SERVER_PORT
         key: ASTROLOGY_API_SERVER_PORT
-      - name: ASTROLOGY_API_SERVER_DNS
-        key: ASTROLOGY_API_SERVER_DNS
-      - name: BOOKING_API_SERVER_PORT
-        key: BOOKING_API_SERVER_PORT
-      - name: BOOKING_API_SERVER_DNS
-        key: BOOKING_API_SERVER_DNS
-      - name: PAYMENT_API_SERVER_PORT
-        key: PAYMENT_API_SERVER_PORT
-      - name: PAYMENT_API_SERVER_DNS
-        key: PAYMENT_API_SERVER_DNS
-      - name: FRONTEND_SERVER_K8S_PORT
-        key: FRONTEND_SERVER_K8S_PORT
-      - name: ASTROLOGY_API_SERVER_K8S_PORT
-        key: ASTROLOGY_API_SERVER_K8S_PORT
-      - name: BOOKING_API_SERVER_K8S_PORT
-        key: BOOKING_API_SERVER_K8S_PORT
-      - name: PAYMENT_API_SERVER_K8S_PORT
-        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: ASTROLOGY_API_SENTRY_DSN
+        key: ASTROLOGY_API_SENTRY_DSN
       - name: CORS_ORIGINS
         key: CORS_ORIGINS
         optional: true
+      - name: ASTROLOGER_API_KEY
+        key: ASTROLOGER_API_KEY
       - name: ASTROLOGER_API_URL
         key: ASTROLOGER_API_URL
       - name: ASTROLOGER_API_HOST
         key: ASTROLOGER_API_HOST
-      - name: ASTROLOGER_API_KEY
-        key: ASTROLOGER_API_KEY
-      - name: ASTROLOGY_API_SENTRY_DSN
-        key: ASTROLOGY_API_SENTRY_DSN
+      - name: ASTROLOGY_API_SERVER_DC_PORT
+        key: ASTROLOGY_API_SERVER_DC_PORT
+      - name: ASTROLOGY_API_SERVER_DC_DNS
+        key: ASTROLOGY_API_SERVER_DC_DNS
+      - name: ASTROLOGY_API_SERVER_K8S_PORT
+        key: ASTROLOGY_API_SERVER_K8S_PORT
+      - name: ASTROLOGY_API_SERVER_K8S_DNS
+        key: ASTROLOGY_API_SERVER_K8S_DNS
+      - name: BOOKING_API_SERVER_DC_PORT
+        key: BOOKING_API_SERVER_DC_PORT
+      - name: BOOKING_API_SERVER_DC_DNS
+        key: BOOKING_API_SERVER_DC_DNS
+      - name: BOOKING_API_SERVER_K8S_PORT
+        key: BOOKING_API_SERVER_K8S_PORT
+      - name: BOOKING_API_SERVER_K8S_DNS
+        key: BOOKING_API_SERVER_K8S_DNS
+      - name: PAYMENT_API_SERVER_DC_PORT
+        key: PAYMENT_API_SERVER_DC_PORT
+      - name: PAYMENT_API_SERVER_DC_DNS
+        key: PAYMENT_API_SERVER_DC_DNS
+      - name: PAYMENT_API_SERVER_K8S_PORT
+        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: PAYMENT_API_SERVER_K8S_DNS
+        key: PAYMENT_API_SERVER_K8S_DNS
+      - name: FRONTEND_SERVER_DC_PORT
+        key: FRONTEND_SERVER_DC_PORT
+      - name: FRONTEND_SERVER_DC_DNS
+        key: FRONTEND_SERVER_DC_DNS
+      - name: FRONTEND_SERVER_K8S_PORT
+        key: FRONTEND_SERVER_K8S_PORT
+      - name: FRONTEND_SERVER_K8S_DNS
+        key: FRONTEND_SERVER_K8S_DNS
     # Exact DopplerSecret sync list for this service (order matches the
-    # original 03-doppler-secrets.yaml).
+    # original 01-doppler-secrets.yaml).
     dopplerSync:
       - NODE_ENV
-      - FRONTEND_SERVER_PORT
-      - FRONTEND_SERVER_DNS
       - ASTROLOGY_API_SERVER_PORT
-      - ASTROLOGY_API_SERVER_DNS
-      - BOOKING_API_SERVER_PORT
-      - BOOKING_API_SERVER_DNS
-      - PAYMENT_API_SERVER_PORT
-      - PAYMENT_API_SERVER_DNS
-      - FRONTEND_SERVER_K8S_PORT
-      - ASTROLOGY_API_SERVER_K8S_PORT
-      - BOOKING_API_SERVER_K8S_PORT
-      - PAYMENT_API_SERVER_K8S_PORT
+      - ASTROLOGY_API_SENTRY_DSN
       - CORS_ORIGINS
+      - ASTROLOGER_API_KEY
       - ASTROLOGER_API_URL
       - ASTROLOGER_API_HOST
-      - ASTROLOGER_API_KEY
-      - ASTROLOGY_API_SENTRY_DSN
+      - ASTROLOGY_API_SERVER_DC_PORT
+      - ASTROLOGY_API_SERVER_DC_DNS
+      - ASTROLOGY_API_SERVER_K8S_PORT
+      - ASTROLOGY_API_SERVER_K8S_DNS
+      - BOOKING_API_SERVER_DC_PORT
+      - BOOKING_API_SERVER_DC_DNS
+      - BOOKING_API_SERVER_K8S_PORT
+      - BOOKING_API_SERVER_K8S_DNS
+      - PAYMENT_API_SERVER_DC_PORT
+      - PAYMENT_API_SERVER_DC_DNS
+      - PAYMENT_API_SERVER_K8S_PORT
+      - PAYMENT_API_SERVER_K8S_DNS
+      - FRONTEND_SERVER_DC_PORT
+      - FRONTEND_SERVER_DC_DNS
+      - FRONTEND_SERVER_K8S_PORT
+      - FRONTEND_SERVER_K8S_DNS
     dopplerExtraKeys: []
   - name: booking-api
     component: booking-api
@@ -190,74 +214,89 @@ services:
     env:
       - name: NODE_ENV
         key: NODE_ENV
-      - name: FRONTEND_SERVER_PORT
-        key: FRONTEND_SERVER_PORT
-      - name: FRONTEND_SERVER_DNS
-        key: FRONTEND_SERVER_DNS
-      - name: ASTROLOGY_API_SERVER_PORT
-        key: ASTROLOGY_API_SERVER_PORT
-      - name: ASTROLOGY_API_SERVER_DNS
-        key: ASTROLOGY_API_SERVER_DNS
       - name: BOOKING_API_SERVER_PORT
         key: BOOKING_API_SERVER_PORT
-      - name: BOOKING_API_SERVER_DNS
-        key: BOOKING_API_SERVER_DNS
-      - name: PAYMENT_API_SERVER_PORT
-        key: PAYMENT_API_SERVER_PORT
-      - name: PAYMENT_API_SERVER_DNS
-        key: PAYMENT_API_SERVER_DNS
-      - name: FRONTEND_SERVER_K8S_PORT
-        key: FRONTEND_SERVER_K8S_PORT
-      - name: ASTROLOGY_API_SERVER_K8S_PORT
-        key: ASTROLOGY_API_SERVER_K8S_PORT
-      - name: BOOKING_API_SERVER_K8S_PORT
-        key: BOOKING_API_SERVER_K8S_PORT
-      - name: PAYMENT_API_SERVER_K8S_PORT
-        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: BOOKING_API_SENTRY_DSN
+        key: BOOKING_API_SENTRY_DSN
       - name: CORS_ORIGINS
         key: CORS_ORIGINS
         optional: true
+      - name: RESEND_API_KEY
+        key: RESEND_API_KEY
+      - name: CALCOM_API_KEY
+        key: CALCOM_API_KEY
       - name: CALCOM_BASE_URL
         key: CALCOM_BASE_URL
       - name: R2_BASE_URL
         key: R2_BASE_URL
-      - name: CALCOM_API_KEY
-        key: CALCOM_API_KEY
-      - name: RESEND_API_KEY
-        key: RESEND_API_KEY
       - name: D1_ACCOUNT_ID
         key: D1_ACCOUNT_ID
-      - name: D1_API_TOKEN
-        key: D1_API_TOKEN
       - name: D1_DATABASE_ID
         key: D1_DATABASE_ID
-      - name: BOOKING_API_SENTRY_DSN
-        key: BOOKING_API_SENTRY_DSN
+      - name: D1_API_TOKEN
+        key: D1_API_TOKEN
+      - name: ASTROLOGY_API_SERVER_DC_PORT
+        key: ASTROLOGY_API_SERVER_DC_PORT
+      - name: ASTROLOGY_API_SERVER_DC_DNS
+        key: ASTROLOGY_API_SERVER_DC_DNS
+      - name: ASTROLOGY_API_SERVER_K8S_PORT
+        key: ASTROLOGY_API_SERVER_K8S_PORT
+      - name: ASTROLOGY_API_SERVER_K8S_DNS
+        key: ASTROLOGY_API_SERVER_K8S_DNS
+      - name: BOOKING_API_SERVER_DC_PORT
+        key: BOOKING_API_SERVER_DC_PORT
+      - name: BOOKING_API_SERVER_DC_DNS
+        key: BOOKING_API_SERVER_DC_DNS
+      - name: BOOKING_API_SERVER_K8S_PORT
+        key: BOOKING_API_SERVER_K8S_PORT
+      - name: BOOKING_API_SERVER_K8S_DNS
+        key: BOOKING_API_SERVER_K8S_DNS
+      - name: PAYMENT_API_SERVER_DC_PORT
+        key: PAYMENT_API_SERVER_DC_PORT
+      - name: PAYMENT_API_SERVER_DC_DNS
+        key: PAYMENT_API_SERVER_DC_DNS
+      - name: PAYMENT_API_SERVER_K8S_PORT
+        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: PAYMENT_API_SERVER_K8S_DNS
+        key: PAYMENT_API_SERVER_K8S_DNS
+      - name: FRONTEND_SERVER_DC_PORT
+        key: FRONTEND_SERVER_DC_PORT
+      - name: FRONTEND_SERVER_DC_DNS
+        key: FRONTEND_SERVER_DC_DNS
+      - name: FRONTEND_SERVER_K8S_PORT
+        key: FRONTEND_SERVER_K8S_PORT
+      - name: FRONTEND_SERVER_K8S_DNS
+        key: FRONTEND_SERVER_K8S_DNS
     # Exact DopplerSecret sync list for this service (order matches the
-    # original 03-doppler-secrets.yaml).
+    # original 01-doppler-secrets.yaml).
     dopplerSync:
       - NODE_ENV
-      - FRONTEND_SERVER_PORT
-      - FRONTEND_SERVER_DNS
-      - ASTROLOGY_API_SERVER_PORT
-      - ASTROLOGY_API_SERVER_DNS
       - BOOKING_API_SERVER_PORT
-      - BOOKING_API_SERVER_DNS
-      - PAYMENT_API_SERVER_PORT
-      - PAYMENT_API_SERVER_DNS
-      - FRONTEND_SERVER_K8S_PORT
-      - ASTROLOGY_API_SERVER_K8S_PORT
-      - BOOKING_API_SERVER_K8S_PORT
-      - PAYMENT_API_SERVER_K8S_PORT
+      - BOOKING_API_SENTRY_DSN
       - CORS_ORIGINS
+      - RESEND_API_KEY
+      - CALCOM_API_KEY
       - CALCOM_BASE_URL
       - R2_BASE_URL
-      - CALCOM_API_KEY
-      - RESEND_API_KEY
       - D1_ACCOUNT_ID
-      - D1_API_TOKEN
       - D1_DATABASE_ID
-      - BOOKING_API_SENTRY_DSN
+      - D1_API_TOKEN
+      - ASTROLOGY_API_SERVER_DC_PORT
+      - ASTROLOGY_API_SERVER_DC_DNS
+      - ASTROLOGY_API_SERVER_K8S_PORT
+      - ASTROLOGY_API_SERVER_K8S_DNS
+      - BOOKING_API_SERVER_DC_PORT
+      - BOOKING_API_SERVER_DC_DNS
+      - BOOKING_API_SERVER_K8S_PORT
+      - BOOKING_API_SERVER_K8S_DNS
+      - PAYMENT_API_SERVER_DC_PORT
+      - PAYMENT_API_SERVER_DC_DNS
+      - PAYMENT_API_SERVER_K8S_PORT
+      - PAYMENT_API_SERVER_K8S_DNS
+      - FRONTEND_SERVER_DC_PORT
+      - FRONTEND_SERVER_DC_DNS
+      - FRONTEND_SERVER_K8S_PORT
+      - FRONTEND_SERVER_K8S_DNS
     dopplerExtraKeys: []
   - name: payment-api
     component: payment-api
@@ -275,33 +314,15 @@ services:
     env:
       - name: NODE_ENV
         key: NODE_ENV
-      - name: FRONTEND_SERVER_PORT
-        key: FRONTEND_SERVER_PORT
-      - name: FRONTEND_SERVER_DNS
-        key: FRONTEND_SERVER_DNS
-      - name: ASTROLOGY_API_SERVER_PORT
-        key: ASTROLOGY_API_SERVER_PORT
-      - name: ASTROLOGY_API_SERVER_DNS
-        key: ASTROLOGY_API_SERVER_DNS
-      - name: BOOKING_API_SERVER_PORT
-        key: BOOKING_API_SERVER_PORT
-      - name: BOOKING_API_SERVER_DNS
-        key: BOOKING_API_SERVER_DNS
       - name: PAYMENT_API_SERVER_PORT
         key: PAYMENT_API_SERVER_PORT
-      - name: PAYMENT_API_SERVER_DNS
-        key: PAYMENT_API_SERVER_DNS
-      - name: FRONTEND_SERVER_K8S_PORT
-        key: FRONTEND_SERVER_K8S_PORT
-      - name: ASTROLOGY_API_SERVER_K8S_PORT
-        key: ASTROLOGY_API_SERVER_K8S_PORT
-      - name: BOOKING_API_SERVER_K8S_PORT
-        key: BOOKING_API_SERVER_K8S_PORT
-      - name: PAYMENT_API_SERVER_K8S_PORT
-        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: PAYMENT_API_SENTRY_DSN
+        key: PAYMENT_API_SENTRY_DSN
       - name: CORS_ORIGINS
         key: CORS_ORIGINS
         optional: true
+      - name: STRIPE_SK
+        key: STRIPE_SK
       - name: STRIPE_API_VER
         key: STRIPE_API_VER
       - name: STRIPE_SOARELE_STRALUCIREA_TA
@@ -316,35 +337,67 @@ services:
         key: STRIPE_ASTROGRAMA_PREVIZIONALA
       - name: STRIPE_EVENIMENT_CONSTELATII
         key: STRIPE_EVENIMENT_CONSTELATII
-      - name: STRIPE_SK
-        key: STRIPE_SK
-      - name: PAYMENT_API_SENTRY_DSN
-        key: PAYMENT_API_SENTRY_DSN
+      - name: ASTROLOGY_API_SERVER_DC_PORT
+        key: ASTROLOGY_API_SERVER_DC_PORT
+      - name: ASTROLOGY_API_SERVER_DC_DNS
+        key: ASTROLOGY_API_SERVER_DC_DNS
+      - name: ASTROLOGY_API_SERVER_K8S_PORT
+        key: ASTROLOGY_API_SERVER_K8S_PORT
+      - name: ASTROLOGY_API_SERVER_K8S_DNS
+        key: ASTROLOGY_API_SERVER_K8S_DNS
+      - name: BOOKING_API_SERVER_DC_PORT
+        key: BOOKING_API_SERVER_DC_PORT
+      - name: BOOKING_API_SERVER_DC_DNS
+        key: BOOKING_API_SERVER_DC_DNS
+      - name: BOOKING_API_SERVER_K8S_PORT
+        key: BOOKING_API_SERVER_K8S_PORT
+      - name: BOOKING_API_SERVER_K8S_DNS
+        key: BOOKING_API_SERVER_K8S_DNS
+      - name: PAYMENT_API_SERVER_DC_PORT
+        key: PAYMENT_API_SERVER_DC_PORT
+      - name: PAYMENT_API_SERVER_DC_DNS
+        key: PAYMENT_API_SERVER_DC_DNS
+      - name: PAYMENT_API_SERVER_K8S_PORT
+        key: PAYMENT_API_SERVER_K8S_PORT
+      - name: PAYMENT_API_SERVER_K8S_DNS
+        key: PAYMENT_API_SERVER_K8S_DNS
+      - name: FRONTEND_SERVER_DC_PORT
+        key: FRONTEND_SERVER_DC_PORT
+      - name: FRONTEND_SERVER_DC_DNS
+        key: FRONTEND_SERVER_DC_DNS
+      - name: FRONTEND_SERVER_K8S_PORT
+        key: FRONTEND_SERVER_K8S_PORT
+      - name: FRONTEND_SERVER_K8S_DNS
+        key: FRONTEND_SERVER_K8S_DNS
     # Exact DopplerSecret sync list for this service (order matches the
-    # original 03-doppler-secrets.yaml — note the payment sync lists
-    # STRIPE_SK/SENTRY before the price IDs, unlike the container env).
+    # original 01-doppler-secrets.yaml).
     dopplerSync:
       - NODE_ENV
-      - FRONTEND_SERVER_PORT
-      - FRONTEND_SERVER_DNS
-      - ASTROLOGY_API_SERVER_PORT
-      - ASTROLOGY_API_SERVER_DNS
-      - BOOKING_API_SERVER_PORT
-      - BOOKING_API_SERVER_DNS
       - PAYMENT_API_SERVER_PORT
-      - PAYMENT_API_SERVER_DNS
-      - FRONTEND_SERVER_K8S_PORT
-      - ASTROLOGY_API_SERVER_K8S_PORT
-      - BOOKING_API_SERVER_K8S_PORT
-      - PAYMENT_API_SERVER_K8S_PORT
-      - CORS_ORIGINS
-      - STRIPE_API_VER
-      - STRIPE_SK
       - PAYMENT_API_SENTRY_DSN
+      - CORS_ORIGINS
+      - STRIPE_SK
+      - STRIPE_API_VER
       - STRIPE_SOARELE_STRALUCIREA_TA
       - STRIPE_GHID_SATURN_IN_BERBEC
       - STRIPE_ASTROGRAMA_NATALA_SI_KARMICA
       - STRIPE_ASTROGRAMA_RELATIONALA
       - STRIPE_ASTROGRAMA_PREVIZIONALA
       - STRIPE_EVENIMENT_CONSTELATII
+      - ASTROLOGY_API_SERVER_DC_PORT
+      - ASTROLOGY_API_SERVER_DC_DNS
+      - ASTROLOGY_API_SERVER_K8S_PORT
+      - ASTROLOGY_API_SERVER_K8S_DNS
+      - BOOKING_API_SERVER_DC_PORT
+      - BOOKING_API_SERVER_DC_DNS
+      - BOOKING_API_SERVER_K8S_PORT
+      - BOOKING_API_SERVER_K8S_DNS
+      - PAYMENT_API_SERVER_DC_PORT
+      - PAYMENT_API_SERVER_DC_DNS
+      - PAYMENT_API_SERVER_K8S_PORT
+      - PAYMENT_API_SERVER_K8S_DNS
+      - FRONTEND_SERVER_DC_PORT
+      - FRONTEND_SERVER_DC_DNS
+      - FRONTEND_SERVER_K8S_PORT
+      - FRONTEND_SERVER_K8S_DNS
     dopplerExtraKeys: []

@@ -16,11 +16,11 @@ charts/astrolumina/
   values-staging.yaml          # staging (blue/green, HTTP Traefik)
   values-production.yaml       # production (blue/green, HTTPS + dashboard auth)
   templates/
-    namespace.yaml             # 00 equivalent
-    ghcr-secret.yaml           # 01 placeholder (real secret is imperative, see below)
-    placeholder-secrets.yaml   # 02 placeholders (first-boot values until Doppler syncs)
-    doppler-secrets.yaml       # 03 DopplerSecret sync wiring
-    deployments.yaml           # 10/20/30/40 (x blue/green on staging/prod)
+    namespace.yaml             # Namespace
+    ghcr-secret.yaml           # ghcr placeholder (real secret is imperative, see below)
+    placeholder-secrets.yaml   # first-boot values until Doppler syncs
+    doppler-secrets.yaml       # DopplerSecret sync wiring
+    deployments.yaml           # one per service (x blue/green on staging/prod)
     services.yaml              # NodePorts on dev, *-live ClusterIP on staging/prod
     hpa.yaml                   # 70
     networkpolicy.yaml         # 60 (permissive on dev, strict otherwise)
@@ -98,11 +98,37 @@ helm upgrade <release> ./charts/astrolumina -f charts/astrolumina/<values-file> 
 - Placeholder Secrets and Deployments use `app.kubernetes.io/component`
   everywhere; the old dev Secrets used `app.kubernetes.io/name` instead.
 - Rendered `stringData` values are always quoted; parsed values are equal.
-- Doppler sync-key order follows staging/production (K8s URLs last);
-  the old dev files listed them mid-list. Order is irrelevant to the
-  operator; key sets are identical.
 - The stale `# 3 replicas` comment on staging Deployments (which actually
   run 1 replica) was dropped; replicas come from values.
+
+## Environment variable scheme
+
+Mirrors the application repos (the APIs validate their full env set at
+startup via zod and exit 1 if anything is missing) and the central
+`AstroLumina-DockerCompose` repo. 100% of variables come from Doppler —
+there are no ConfigMaps.
+
+- **App-specific variables first, shared endpoint pairs last.** Every
+  service lists its own variables first (`NODE_ENV`, its `*_SERVER_PORT`,
+  `*_SENTRY_DSN`, plus its own keys: astrologer/CalCom/Stripe/`_API_URL`),
+  then the 16 shared `DC`/`K8S` endpoint pairs in canonical order
+  (`ASTROLOGY` / `BOOKING` / `PAYMENT` / `FRONTEND` × `DC_PORT`, `DC_DNS`,
+  `K8S_PORT`, `K8S_DNS`). The APIs build their CORS origins from these
+  pairs; the browser never talks to them directly.
+- **Frontend URL mapping (K8s logic).** The frontend image reads the
+  app-facing names `ASTROLOGY_API_URL` / `PAYMENT_API_URL` /
+  `BOOKING_API_URL` (injected into `public/env.js` by the entrypoint —
+  `VITE_*` names are NOT read). In Kubernetes these take the K8s-side
+  values, so each Deployment wires `name: *_API_URL` from
+  `secretKeyRef key: *_API_K8S_URL` (in Compose they take the `_API_DC_URL`
+  values instead). The unreferenced plain `_API_URL` / `_API_DC_URL` keys
+  are NOT synced — only the 24 / 23 / 27 / 28 keys each service actually
+  reads (frontend / astrology / booking / payment).
+- **Service token.** The Doppler operator authenticates with the
+  `DOPPLER_SERVICE_TOKEN` value (one token per Doppler config:
+  `dev` / `stg` / `prd`), stored in the imperative
+  `doppler-token-dev` / `-stg` / `-prd` Secrets referenced by
+  `doppler.tokenSecret`. It is never committed to git.
 
 ## Validation
 

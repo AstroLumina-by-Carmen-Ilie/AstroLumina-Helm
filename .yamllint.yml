@@ -1,0 +1,8 @@
+# Yamllint config: relaxed style for Chart and values files.
+# The templates/ directory holds Go templating, not plain YAML - it is
+# validated by rendering the chart (helm template), not by this linter.
+extends: relaxed
+
+rules:
+  line-length:
+    max: 200
