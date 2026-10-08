@@ -60,13 +60,17 @@ helm upgrade astrolumina-staging ./charts/astrolumina \
   --set blueGreen.liveColor=green
 ```
 
-Pin image tags from Doppler without editing values (tags live in Doppler
-as `*_DOCKER_IMAGE_TAG`, same flow as the old `kubectl set image` step):
+Image tags are pinned per color in `values-staging.yaml` /
+`values-production.yaml` (`imageTags.blue` / `imageTags.green` — source of
+truth in git, mirrors the Compose `versions.env` files, Doppler no longer
+carries any `*_DOCKER_IMAGE_TAG` keys). Dev falls back to `image.tag`
+(`latest`). To promote a build, bump the tags in the values file and upgrade
+(still overridable per run with `--set`):
 
 ```bash
 helm upgrade astrolumina-prod ./charts/astrolumina \
   -f charts/astrolumina/values-production.yaml \
-  --set image.tag=<tag-from-doppler>
+  --set imageTags.blue.frontend=<new-tag> --set imageTags.green.frontend=<new-tag>
 ```
 
 ## First boot on an empty cluster (3 phases, same as before)

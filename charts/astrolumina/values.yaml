@@ -2,11 +2,15 @@
 # (namespace, replicas, probes, Traefik, placeholder secret values, Doppler
 # project config) live in values-dev/staging/production.yaml. This file holds
 # what is IDENTICAL across environments: the service catalog, container
-# images, resource budgets and the full secretKeyRef env wiring per service
+# image registry, resource budgets and the full secretKeyRef env wiring per
+# service
 # (Compose-style variable names — the frontend entrypoint injects them into
 # public/env.js, VITE_* names are NOT read by the image).
 image:
   registry: ghcr.io/astrolumina-by-carmen-ilie
+  # Fallback tag (used on dev, which has no per-color tags). Staging and
+  # production pin per-color tags in values-staging/production.yaml
+  # (imageTags), mirroring the Compose versions.env files.
   tag: latest
   pullPolicy: Always
   pullSecret: ghcr-secret

@@ -19,6 +19,22 @@ blueGreen:
     blue: rke2-worker-daniel-pirvu-01
     green: rke2-worker-daniel-pirvu-02
 
+# Pinned image tags per color (source of truth in git, mirrors the Compose
+# staging versions.env — keep them in parity). Same value on both colors =
+# current behavior; diverge them to stage a release on the idle color, then
+# flip traffic with blueGreen.liveColor.
+imageTags:
+  blue:
+    frontend: 2.0.8
+    astrology-api: 2.0.8
+    booking-api: 2.0.7
+    payment-api: 2.0.8
+  green:
+    frontend: 2.0.8
+    astrology-api: 2.0.8
+    booking-api: 2.0.7
+    payment-api: 2.0.8
+
 replicas: 1
 
 probes:
