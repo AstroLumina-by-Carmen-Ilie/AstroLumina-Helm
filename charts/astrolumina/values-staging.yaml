@@ -14,7 +14,7 @@ blueGreen:
   colors:
     - blue
     - green
-  liveColor: blue # LIVE: flip to green to switch traffic
+  liveColor: green # LIVE: flip to green to switch traffic
   nodeNames:
     blue: rke2-worker-daniel-pirvu-01
     green: rke2-worker-daniel-pirvu-02
@@ -31,7 +31,7 @@ imageTags:
     payment-api: 2.0.8
   green:
     frontend: 2.0.8
-    astrology-api: 2.0.8
+    astrology-api: 2.0.10
     booking-api: 2.0.7
     payment-api: 2.0.8
 
