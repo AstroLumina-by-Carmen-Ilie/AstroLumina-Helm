@@ -23,6 +23,7 @@ spec:
   selector:
 {{ include "astrolumina.selector" (list $svc "") | indent 4 }}
 {{- else }}
+{{- $live := required (printf "blueGreen.liveColors has no entry for service '%s'" $svc.name) (index $root.Values.blueGreen.liveColors $svc.name) }}
 ---
 apiVersion: v1
 kind: Service
@@ -41,6 +42,6 @@ spec:
   selector:
     app.kubernetes.io/name: {{ $svc.name }}
     app.kubernetes.io/component: {{ $svc.component }}
-    variant: {{ $root.Values.blueGreen.liveColor }}
+    variant: {{ $live }}
 {{- end }}
 {{- end }}

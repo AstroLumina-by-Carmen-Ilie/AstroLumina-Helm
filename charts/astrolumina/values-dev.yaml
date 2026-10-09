@@ -13,7 +13,13 @@ blueGreen:
   colors:
     - blue
     - green
-  liveColor: blue # unused on dev (no *-live Services), kept for schema parity
+  # Per-service live colors, unused on dev (no *-live Services), kept for
+  # schema parity with staging/production.
+  liveColors:
+    frontend: blue
+    astrology-api: blue
+    booking-api: blue
+    payment-api: blue
   nodeNames: {} # no node affinity on dev
 
 replicas: 1

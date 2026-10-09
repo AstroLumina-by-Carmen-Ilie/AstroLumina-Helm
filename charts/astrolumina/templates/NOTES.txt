@@ -14,10 +14,14 @@ AstroLumina {{ .Values.environment }} is installed in namespace {{ .Values.names
 {{- end }}
 {{- if .Values.blueGreen.enabled }}
 
-  Live color: {{ .Values.blueGreen.liveColor }} (the *-live Services select
-  variant={{ .Values.blueGreen.liveColor }}). Switch traffic with:
+  Live color per service (each <name>-live Service selects its own
+  variant -- flip one service at a time, never all four at once):
+{{- range $svc := .Values.services }}
+    {{ $svc.name }}: {{ index $.Values.blueGreen.liveColors $svc.name }}
+{{- end }}
+  Switch one service with:
     helm upgrade <release> ./charts/astrolumina -f charts/astrolumina/{{ .Values.valuesFile }} \
-      --set blueGreen.liveColor=green
+      --set blueGreen.liveColors.<service>=green
 {{- end }}
 
 NOT in this chart (create once per cluster rebuild, values from Doppler CLI
