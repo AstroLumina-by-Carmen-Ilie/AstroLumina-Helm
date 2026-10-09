@@ -51,13 +51,14 @@ helm template astrolumina-dev ./charts/astrolumina \
   -f charts/astrolumina/values-dev.yaml
 ```
 
-Blue-green switch (staging/production — flips the 4 `*-live` selectors,
-exactly like editing `53-live-services.yaml` by hand):
+Blue-green switch (staging/production -- flips one `*-live` selector,
+exactly like editing `53-live-services.yaml` by hand; repeat per service,
+each app flips independently):
 
 ```bash
 helm upgrade astrolumina-staging ./charts/astrolumina \
   -f charts/astrolumina/values-staging.yaml \
-  --set blueGreen.liveColor=green
+  --set blueGreen.liveColors.astrology-api=green
 ```
 
 Image tags are pinned per color in `values-staging.yaml` /

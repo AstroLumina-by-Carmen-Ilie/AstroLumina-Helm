@@ -14,7 +14,14 @@ blueGreen:
   colors:
     - blue
     - green
-  liveColor: blue # LIVE: flip to green to switch traffic
+  # Live color PER SERVICE -- each app flips independently (mirrors the
+  # per-service *-live selectors in Kubernetes and the per-router LIVE
+  # markers in Compose). Flip one service line at a time.
+  liveColors:
+    frontend: blue # LIVE
+    astrology-api: blue # LIVE
+    booking-api: blue # LIVE
+    payment-api: blue # LIVE
   nodeNames:
     blue: rke2-worker-daniel-pirvu-01
     green: rke2-worker-daniel-pirvu-02
@@ -22,7 +29,7 @@ blueGreen:
 # Pinned image tags per color (source of truth in git, mirrors the Compose
 # staging versions.env — keep them in parity). Same value on both colors =
 # current behavior; diverge them to stage a release on the idle color, then
-# flip traffic with blueGreen.liveColor.
+# flip traffic with that service's blueGreen.liveColors entry.
 imageTags:
   blue:
     frontend: 2.0.8
