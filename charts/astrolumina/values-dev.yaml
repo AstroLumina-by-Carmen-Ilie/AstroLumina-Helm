@@ -22,6 +22,15 @@ blueGreen:
     payment-api: blue
   nodeNames: {} # no node affinity on dev
 
+# Per-service image tags for dev (no blue/green here). The deployment
+# template prefers these over the global image.tag fallback from values.yaml,
+# so each service can be deployed at its own version.
+devTags:
+  frontend: latest
+  astrology-api: latest
+  booking-api: latest
+  payment-api: latest
+
 replicas: 1
 
 # Probe delays only; period/timeout/threshold are constant across all envs

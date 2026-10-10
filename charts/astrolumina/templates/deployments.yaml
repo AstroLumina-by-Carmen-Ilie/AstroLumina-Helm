@@ -53,6 +53,7 @@ spec:
         - name: {{ $svc.name }}
           {{- $tag := $root.Values.image.tag }}
           {{- if $color }}{{ $tag = index (index $root.Values.imageTags $color) $svc.name }}{{ end }}
+          {{- if and (not $color) $root.Values.devTags (hasKey $root.Values.devTags $svc.name) }}{{ $tag = index $root.Values.devTags $svc.name }}{{ end }}
           image: {{ $root.Values.image.registry }}/{{ $svc.image }}:{{ $tag }}
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
           ports:

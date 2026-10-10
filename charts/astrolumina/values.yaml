@@ -8,8 +8,9 @@
 # public/env.js, VITE_* names are NOT read by the image).
 image:
   registry: ghcr.io/astrolumina-by-carmen-ilie
-  # Fallback tag (used on dev, which has no per-color tags). Staging and
-  # production pin per-color tags in values-staging/production.yaml
+  # Ultimate fallback tag: dev prefers its per-service devTags (see
+  # values-dev.yaml) and only uses this when a service has no entry there.
+  # Staging and production pin per-color tags in values-staging/production.yaml
   # (imageTags), mirroring the Compose versions.env files.
   tag: latest
   pullPolicy: Always
