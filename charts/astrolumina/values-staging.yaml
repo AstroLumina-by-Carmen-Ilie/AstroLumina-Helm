@@ -20,8 +20,8 @@ blueGreen:
   liveColors:
     frontend: blue # LIVE
     astrology-api: green # LIVE
+    payment-api: blue # LIVE
     booking-api: blue # LIVE
-    payment-api: green # LIVE
   nodeNames:
     blue: rke2-worker-daniel-pirvu-01
     green: rke2-worker-daniel-pirvu-02
@@ -34,8 +34,8 @@ imageTags:
   blue:
     frontend: 2.0.10
     astrology-api: 2.0.8
+    payment-api: 2.0.10
     booking-api: 2.0.9
-    payment-api: 2.0.8
   green:
     frontend: 2.0.9
     astrology-api: 2.0.11
