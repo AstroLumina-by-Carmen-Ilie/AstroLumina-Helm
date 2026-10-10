@@ -15,9 +15,10 @@
 #   entry; the template falls back to the global `image.tag` only for
 #   services with no devTags entry.
 # - staging/production: tags live in imageTags.<color>.<service>. The live
-#   color is read per service from blueGreen.liveColors and only the IDLE
-#   entry is bumped. liveColor is NOT flipped here -- flip it afterwards,
-#   same as the promote flow.
+#   color is read per service from blueGreen.liveColors, the IDLE entry is
+#   bumped, and traffic is flipped to it in the same commit (liveColors entry
+#   rewritten, # LIVE comment preserved) -- full blue-green promotion, same as
+#   the promote flow.
 # =============================================================================
 
 name: Deploy
@@ -178,6 +179,27 @@ jobs:
                                           f"\\g<1>{ver}\\g<2>",
                                           lines[tag_idx].rstrip("\n")) + "\n"
                   patched.append((svc, live, idle, ver))
+              with open(values_file, "w") as f:
+                  f.write("".join(lines))
+              # Flip traffic to the freshly bumped idle color in the same
+              # commit. The search is bounded to the liveColors section and
+              # the matched value must equal the live color just read, so an
+              # imageTags line can never be rewritten by accident; the
+              # # LIVE comment survives.
+              lc_anchor = next(
+                  i for i, l in enumerate(lines)
+                  if l.rstrip("\n") == "  liveColors:")
+              for svc, live, idle, ver in patched:
+                  key = f"    {svc}: "
+                  lc_idx = next(
+                      i for i in range(lc_anchor + 1, len(lines))
+                      if lines[i].startswith(key)
+                      and re.match(r"^\s+\S+: (\S+)",
+                                   lines[i].rstrip("\n")).group(1) == live)
+                  lines[lc_idx] = re.sub(r"^(\s+\S+: )\S+(.*)$",
+                                         f"\\g<1>{idle}\\g<2>",
+                                         lines[lc_idx].rstrip("\n")) + "\n"
+                  print(f"{svc}: live={live} -> {idle}, traffic flipped")
               with open(values_file, "w") as f:
                   f.write("".join(lines))
               for svc, live, idle, ver in patched:
