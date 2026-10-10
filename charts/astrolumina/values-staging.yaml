@@ -19,7 +19,7 @@ blueGreen:
   # markers in Compose). Flip one service line at a time.
   liveColors:
     frontend: green # LIVE
-    astrology-api: green # LIVE
+    astrology-api: blue # LIVE
     booking-api: green # LIVE
     payment-api: green # LIVE
   nodeNames:
@@ -33,7 +33,7 @@ blueGreen:
 imageTags:
   blue:
     frontend: 2.0.8
-    astrology-api: 2.0.8
+    astrology-api: 2.0.12
     booking-api: 2.0.7
     payment-api: 2.0.8
   green:
