@@ -1,0 +1,209 @@
+# =============================================================================
+# AstroLumina Helm -- Deploy
+#
+# Single manual deploy workflow. Bumps image tags IN GIT on a branch and
+# opens a PR to main -- a human merges, then upgrades the release
+# (or SYNCs the ArgoCD Helm app).
+#
+# Inputs: required environment choice (development/staging/production) plus four
+# optional version texts. At least one version is mandatory; only components
+# with a version are touched.
+#
+# Per-env logic (blue-green awareness):
+# - dev: the chart renders every service from the single global `image.tag`
+#   (no per-color tags on dev), so exactly ONE distinct version may be given
+#   -- it is written to values-dev.yaml. Asking for different versions per
+#   service fails loudly instead of rendering a mix the chart cannot express.
+# - staging/production: tags live in imageTags.<color>.<service>. The live
+#   color is read per service from blueGreen.liveColors and only the IDLE
+#   entry is bumped. liveColor is NOT flipped here -- flip it afterwards,
+#   same as the promote flow.
+# =============================================================================
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      frontend_version:
+        description: "Frontend version (X.Y.Z or latest, empty = skip)"
+        required: false
+        default: ""
+      astrology_version:
+        description: "Astrology API version (X.Y.Z or latest, empty = skip)"
+        required: false
+        default: ""
+      booking_version:
+        description: "Booking API version (X.Y.Z or latest, empty = skip)"
+        required: false
+        default: ""
+      payment_version:
+        description: "Payment API version (X.Y.Z or latest, empty = skip)"
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Require at least one version
+        run: |
+          if [ -z "${{ inputs.frontend_version }}" ] \
+            && [ -z "${{ inputs.astrology_version }}" ] \
+            && [ -z "${{ inputs.booking_version }}" ] \
+            && [ -z "${{ inputs.payment_version }}" ]; then
+            echo "At least one service version is required" >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Ensure PyYAML is available
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || pip install --break-system-packages pyyaml
+
+      - name: Bump image tags in values file
+        env:
+          INPUT_ENV: ${{ inputs.environment }}
+          INPUT_FRONTEND_VERSION: ${{ inputs.frontend_version }}
+          INPUT_ASTROLOGY_VERSION: ${{ inputs.astrology_version }}
+          INPUT_BOOKING_VERSION: ${{ inputs.booking_version }}
+          INPUT_PAYMENT_VERSION: ${{ inputs.payment_version }}
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          import re
+
+          import yaml
+
+          env_in = os.environ["INPUT_ENV"]
+          values_file = {
+              "development": "charts/astrolumina/values-dev.yaml",
+              "staging": "charts/astrolumina/values-staging.yaml",
+              "production": "charts/astrolumina/values-production.yaml",
+          }[env_in]
+          wanted = {
+              "frontend": os.environ.get("INPUT_FRONTEND_VERSION", "").strip(),
+              "astrology-api": os.environ.get("INPUT_ASTROLOGY_VERSION",
+                                              "").strip(),
+              "booking-api": os.environ.get("INPUT_BOOKING_VERSION",
+                                            "").strip(),
+              "payment-api": os.environ.get("INPUT_PAYMENT_VERSION",
+                                            "").strip(),
+          }
+          specified = {k: v for k, v in wanted.items() if v}
+          assert specified, "no version given (blocked by the validation step)"
+          shape = re.compile(r"^(\d+\.\d+\.\d+|latest)$")
+          for svc, ver in specified.items():
+              assert shape.match(ver), (
+                  f"bad version {ver!r} for {svc}: want X.Y.Z or latest")
+
+          with open(values_file) as f:
+              lines = f.read().splitlines(keepends=True)
+
+          if env_in == "development":
+              versions = set(specified.values())
+              assert len(versions) == 1, (
+                  "dev shares one global image.tag for all services, but "
+                  f"got distinct versions {sorted(versions)}")
+              ver = versions.pop()
+              text = "".join(lines)
+              if re.search(r"^image:$", text, flags=re.M):
+                  new, n = re.subn(r"^(  tag: ).*$", f"\\g<1>{ver}", text,
+                                   count=1, flags=re.M)
+                  assert n == 1, "image.tag line not found exactly once"
+              else:
+                  anchor = "valuesFile: values-dev.yaml\n"
+                  assert anchor in lines, "valuesFile anchor line missing"
+                  block = ("\nimage:\n"
+                           "  # Set by the manual Deploy workflow (dev shares "
+                           "one tag for all services).\n"
+                           f"  tag: {ver}\n")
+                  idx = lines.index(anchor)
+                  lines.insert(idx + 1, block)
+                  new = "".join(lines)
+              with open(values_file, "w") as f:
+                  f.write(new)
+              print(f"dev: global image.tag set to {ver}")
+          else:
+              with open(values_file) as f:
+                  values = yaml.safe_load(f)
+              live_colors = values["blueGreen"]["liveColors"]
+              # Walk the imageTags section by exact keys so the # LIVE
+              # comments on the tag lines survive untouched.
+              annotation = [i for i, l in enumerate(lines)
+                            if l.rstrip("\n") == "imageTags:"]
+              assert len(annotation) == 1, "imageTags section anchor missing"
+              start = annotation[0]
+              patched = []
+              for svc, ver in specified.items():
+                  live = live_colors[svc]
+                  assert live in ("blue", "green"), (
+                      f"unexpected live color {live!r} for {svc}")
+                  idle = "green" if live == "blue" else "blue"
+                  color_idx = next(
+                      i for i in range(start + 1, len(lines))
+                      if lines[i].rstrip("\n") == f"  {idle}:")
+                  key = f"    {svc}: "
+                  tag_idx = next(
+                      i for i in range(color_idx + 1, len(lines))
+                      if lines[i].startswith(key))
+                  lines[tag_idx] = re.sub(r"^(\s+\S+: )\S+(.*)$",
+                                          f"\\g<1>{ver}\\g<2>",
+                                          lines[tag_idx].rstrip("\n")) + "\n"
+                  patched.append((svc, live, idle, ver))
+              with open(values_file, "w") as f:
+                  f.write("".join(lines))
+              for svc, live, idle, ver in patched:
+                  print(f"{svc}: live={live}, idle {idle} tag set to {ver}")
+          PYEOF
+
+      - name: Commit to branch and open deploy PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="deploy/${{ inputs.environment }}-${{ github.run_number }}"
+          # The deploy/* namespace is bot-owned: -B resets a stale branch
+          # from an earlier failed run, and the force-push below only ever
+          # overwrites the bot's own previous attempt, never human work.
+          git checkout -B "$BRANCH"
+          # Fresh checkout plus the single python step above: -A can only
+          # stage the intended values change.
+          git add -A
+          echo "Changed files:"; git diff --cached --name-only
+          if git diff --cached --quiet; then
+            echo "Nothing to commit (tags already at the requested versions)"
+          else
+            git commit -m "deploy ${{ inputs.environment }}: bump image tags"
+          fi
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+            echo "No changes vs main, skipping PR"
+          else
+            git push -u -f origin "$BRANCH"
+            if gh pr view "$BRANCH" --json number -q .number >/dev/null 2>&1; then
+              echo "PR already exists for $BRANCH, pushed update to it"
+            else
+              gh pr create --base main --head "$BRANCH" \
+                --title "deploy ${{ inputs.environment }}: bump image tags" \
+                --body "Manual deploy to ${{ inputs.environment }} (run ${{ github.run_number }}). Merge, then upgrade the release (or SYNC the ArgoCD Helm app) and flip traffic when ready."
+            fi
+          fi
