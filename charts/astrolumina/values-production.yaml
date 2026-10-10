@@ -37,10 +37,10 @@ imageTags:
     booking-api: 2.0.7
     payment-api: 2.0.8
   green:
-    frontend: 2.0.8
-    astrology-api: 2.0.8
-    booking-api: 2.0.7
-    payment-api: 2.0.8
+    frontend: 2.0.11
+    astrology-api: 2.0.13
+    booking-api: 2.0.10
+    payment-api: 2.0.11
 
 replicas: 3
 

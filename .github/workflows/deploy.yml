@@ -10,10 +10,10 @@
 # with a version are touched.
 #
 # Per-env logic (blue-green awareness):
-# - dev: the chart renders every service from the single global `image.tag`
-#   (no per-color tags on dev), so exactly ONE distinct version may be given
-#   -- it is written to values-dev.yaml. Asking for different versions per
-#   service fails loudly instead of rendering a mix the chart cannot express.
+# - dev: tags live in the per-service `devTags` map in values-dev.yaml (no
+#   blue/green on dev). Each given version is written to its own service
+#   entry; the template falls back to the global `image.tag` only for
+#   services with no devTags entry.
 # - staging/production: tags live in imageTags.<color>.<service>. The live
 #   color is read per service from blueGreen.liveColors, the IDLE entry is
 #   bumped, and traffic is flipped to it in the same commit (liveColors entry
@@ -120,29 +120,38 @@ jobs:
               lines = f.read().splitlines(keepends=True)
 
           if env_in == "development":
-              versions = set(specified.values())
-              assert len(versions) == 1, (
-                  "dev shares one global image.tag for all services, but "
-                  f"got distinct versions {sorted(versions)}")
-              ver = versions.pop()
-              text = "".join(lines)
-              if re.search(r"^image:$", text, flags=re.M):
-                  new, n = re.subn(r"^(  tag: ).*$", f"\\g<1>{ver}", text,
-                                   count=1, flags=re.M)
-                  assert n == 1, "image.tag line not found exactly once"
-              else:
-                  anchor = "valuesFile: values-dev.yaml\n"
-                  assert anchor in lines, "valuesFile anchor line missing"
-                  block = ("\nimage:\n"
-                           "  # Set by the manual Deploy workflow (dev shares "
-                           "one tag for all services).\n"
-                           f"  tag: {ver}\n")
-                  idx = lines.index(anchor)
-                  lines.insert(idx + 1, block)
-                  new = "".join(lines)
+              with open(values_file) as f:
+                  values = yaml.safe_load(f)
+              dev_tags = values.get("devTags")
+              assert isinstance(dev_tags, dict), (
+                  "values-dev.yaml has no devTags map")
+              for svc in specified:
+                  assert svc in dev_tags, (
+                      f"devTags has no entry for service {svc!r}")
+              # Walk the devTags section by exact keys so trailing comments
+              # on the tag lines survive untouched.
+              annotation = [i for i, l in enumerate(lines)
+                            if l.rstrip("\n") == "devTags:"]
+              assert len(annotation) == 1, "devTags section anchor missing"
+              start = annotation[0]
+              end = next(
+                  (i for i in range(start + 1, len(lines))
+                   if re.match(r"^[A-Za-z]", lines[i])),
+                  len(lines))
+              patched = []
+              for svc, ver in specified.items():
+                  key = f"  {svc}: "
+                  tag_idx = next(
+                      i for i in range(start + 1, end)
+                      if lines[i].startswith(key))
+                  lines[tag_idx] = re.sub(r"^(\s+\S+: )\S+(.*)$",
+                                          f"\\g<1>{ver}\\g<2>",
+                                          lines[tag_idx].rstrip("\n")) + "\n"
+                  patched.append((svc, ver))
               with open(values_file, "w") as f:
-                  f.write(new)
-              print(f"dev: global image.tag set to {ver}")
+                  f.write("".join(lines))
+              for svc, ver in patched:
+                  print(f"{svc}: dev tag set to {ver}")
           else:
               with open(values_file) as f:
                   values = yaml.safe_load(f)
@@ -226,6 +235,14 @@ jobs:
             else
               gh pr create --base main --head "$BRANCH" \
                 --title "deploy ${{ inputs.environment }}: bump image tags" \
-                --body "Deploy ${{ inputs.environment }} (run ${{ github.run_number }}). Merge, then upgrade the release; live already flipped."
+                --body "Manual deploy to ${{ inputs.environment }} (run ${{ github.run_number }}). Merge, then upgrade the release (or SYNC the ArgoCD Helm app) and flip traffic when ready." || {
+                echo "HINT: if the error above says 'GitHub Actions is not permitted" >&2
+                echo "to create or approve pull requests', enable 'Allow GitHub Actions" >&2
+                echo "to create and approve pull requests' under Settings -> Actions ->" >&2
+                echo "General -> Workflow permissions (can be set once at org level)." >&2
+                echo "The branch $BRANCH is already pushed -- flip the setting," >&2
+                echo "then re-run this job." >&2
+                exit 1
+              }
             fi
           fi
