@@ -75,10 +75,9 @@ helm upgrade astrolumina-prod ./charts/astrolumina \
 ```
 
 The same bumps go through the manual `.github/workflows/deploy.yml` (env
-choice + per-service versions, branch + PR): staging/production edit the
-idle `imageTags` entries (live read from `blueGreen.liveColors`, never
-flipped by the workflow); dev writes the single global `image.tag`, so only
-one distinct version may be given there.
+choice + per-service versions, branch + PR): staging/production bump the
+idle `imageTags` entries and flip that service's `blueGreen.liveColors`
+entry in the same PR; dev writes per-service `devTags` entries.
 
 ## First boot on an empty cluster (3 phases, same as before)
 
